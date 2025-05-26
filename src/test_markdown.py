@@ -1,8 +1,9 @@
 import unittest
 from textnode import TextNode, TextType
-from markdown import (split_nodes_delimiter, extract_markdown_images,
+from markdown import (BlockType, split_nodes_delimiter, extract_markdown_images,
                       extract_markdown_links, split_nodes_link,
-                      split_nodes_images)
+                      split_nodes_images, text_to_textnodes, markdown_to_blocks,
+                      block_to_block_type)
 
 class test_split_nodes_delimiter(unittest.TestCase):
     def test_single_split(self):
@@ -70,3 +71,61 @@ class test_split_nodes_link(unittest.TestCase):
                                                     TextNode("anchor", TextType.IMAGE, "img"),
                                                     TextNode(" at ", TextType.TEXT),
                                                     TextNode("anchor2", TextType.IMAGE, "img2")])
+        
+class test_text_to_textnodes(unittest.TestCase):
+    def test(self):
+        text = "Text **bold** _italic_ `code` ![anchor](img) [anchor](url)"
+        self.assertEqual(text_to_textnodes(text), [TextNode("Text ", TextType.TEXT),
+                                                   TextNode("bold", TextType.BOLD),
+                                                   TextNode(" ", TextType.TEXT),
+                                                   TextNode("italic", TextType.ITALIC),
+                                                   TextNode(" ", TextType.TEXT),
+                                                   TextNode("code", TextType.CODE),
+                                                   TextNode(" ", TextType.TEXT),
+                                                   TextNode("anchor", TextType.IMAGE, "img"),
+                                                   TextNode(" ", TextType.TEXT),
+                                                   TextNode("anchor", TextType.LINK, "url")])
+        
+class tests(unittest.TestCase):
+        def test_markdown_to_blocks(self):
+            md = """
+This is **bolded** paragraph
+
+This is another paragraph with _italic_ text and `code` here
+This is the same paragraph on a new line
+
+- This is a list
+- with items
+    """
+            blocks = markdown_to_blocks(md)
+            self.assertEqual(
+                blocks,
+                [
+                    "This is **bolded** paragraph",
+                    "This is another paragraph with _italic_ text and `code` here\nThis is the same paragraph on a new line",
+                    "- This is a list\n- with items",
+                ],
+            )
+
+        def test_block_to_block_type(self):
+            heading_block = "###### hello"
+            false_heading = "####### too many #"
+            code_block = "```testing\ntesting\ntesting\n```"
+            false_code = "```testing\ntesting\ntesting\n``"
+            quote_block = "> hello\n> there new\n> padawan"
+            false_quote = "> hello\n> there new\n- padawan"
+            unordered_block = "- hello\n- there new\n- padawan"
+            false_unordered = "- hello\n> there new\n- padawan"
+            ordered_block = "1. one\n2. two\n3. three"
+            false_ordered = "1. one\n2. two\n4. three"
+            self.assertEqual(block_to_block_type(heading_block), BlockType.HEADING)
+            self.assertEqual(block_to_block_type(false_heading), BlockType.PARAGRAPH)
+            self.assertEqual(block_to_block_type(code_block), BlockType.CODE)
+            self.assertEqual(block_to_block_type(false_code), BlockType.PARAGRAPH)
+            self.assertEqual(block_to_block_type(quote_block), BlockType.QUOTE)
+            self.assertEqual(block_to_block_type(false_quote), BlockType.PARAGRAPH)
+            self.assertEqual(block_to_block_type(unordered_block), BlockType.UNORDERED_LIST)
+            self.assertEqual(block_to_block_type(false_unordered), BlockType.PARAGRAPH)
+            self.assertEqual(block_to_block_type(ordered_block), BlockType.ORDERED_LIST)
+            self.assertEqual(block_to_block_type(false_ordered), BlockType.PARAGRAPH)
+
