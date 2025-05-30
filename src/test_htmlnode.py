@@ -15,11 +15,11 @@ class testHTMLNode(unittest.TestCase):
 class testLeafNode(unittest.TestCase):
     def test_to_html(self):
         full_node = LeafNode("a", "Click me!", {"href": "https://www.google.com"})
-        p_node = LeafNode("p", "This is a paragraph of text.")
+        p_node = LeafNode("p", "This is a paragraph of text./nNew line")
         no_value_node = LeafNode("p", None)
         no_tag_node = LeafNode(None, "Five")
         self.assertEqual(full_node.to_html(), '<a href="https://www.google.com">Click me!</a>')
-        self.assertEqual(p_node.to_html(), "<p>This is a paragraph of text.</p>")
+        self.assertEqual(p_node.to_html(), "<p>This is a paragraph of text./nNew line</p>")
         self.assertEqual(no_tag_node.to_html(), "Five")
         with self.assertRaises(ValueError):
             no_value_node.to_html()

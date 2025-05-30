@@ -1,6 +1,7 @@
 import re
 from enum import Enum
-from textnode import TextNode, TextType
+from textnode import TextNode, TextType, text_node_to_html_node
+from htmlnode import HTMLNode, LeafNode, ParentNode
 
 class BlockType(Enum):
     PARAGRAPH = "paragraph"
@@ -109,30 +110,37 @@ def block_to_block_type(block):
     lines = block.split("\n")
     
     # Check for Heading
+    # Boots helped quite a bit here
     if block.startswith("#"):
         header = block.split(" ")[0]
-        if len(header) <= 6:
-            for i in range(0, len(header)):
-                if not header[i] == "#":
-                    break
-                if i == len(header) - 1:
+        length = len(header)
+        if length <= 6 and len(block) != length:
+            if block[length] == " ":
+                header = header.replace("#", "")
+                if header == "":
                     return BlockType.HEADING
 
     # Check for Code Block
     if block.startswith("```") and block.endswith("```"):
-        return BlockType.CODE
+        sliced = block[3:(len(block)-3)]
+        if not sliced.startswith("`") and not sliced.endswith("`"):
+            return BlockType.CODE
     
-    # Checking for Quote Block or Unordered List
-    if block.startswith(">") or block.startswith("-"):
-        start = lines[0][0]
+    # Checking for Quote Block
+    if block.startswith(">"):
         for i in range(0, len(lines)):
-            if not lines[i].startswith(start):
+            if not lines[i].startswith(">"):
                 break
             if i == len(lines)- 1:
-                if start == ">":
-                    return BlockType.QUOTE
-                if start == "-":
-                    return BlockType.UNORDERED_LIST
+                return BlockType.QUOTE
+    
+    # Checking for Unordered List
+    if block.startswith("- "):
+        for i in range(0, len(lines)):
+            if not lines[i].startswith("- "):
+                break
+            if i == len(lines) - 1:
+                return BlockType.UNORDERED_LIST
     
     # Checking Ordered List
     if block.startswith("1. "):
@@ -145,3 +153,49 @@ def block_to_block_type(block):
     # All checks failed returns Paragraph
     return BlockType.PARAGRAPH
 
+def text_to_children(text, block_type):
+    match block_type:
+        case BlockType.PARAGRAPH:
+            text = text.replace("\n", " ")
+        case BlockType.HEADING | BlockType.QUOTE:
+            text = text.split(" ", 1)[1]
+        case BlockType.ORDERED_LIST | BlockType.UNORDERED_LIST:
+            lines = text.split("\n")
+            new_lines = []
+            for line in lines:
+                line = line.split(" ", 1)[1]
+                new_lines.append(f"<li>{line}</li>")
+            text = "".join(new_lines)
+        case _:
+            raise ValueError("Invalid block type")
+    text_nodes = text_to_textnodes(text)
+    child_nodes = []
+    for node in text_nodes:
+        child_nodes.append(text_node_to_html_node(node))
+    return child_nodes
+
+def markdown_to_html_node(markdown):
+    blocks = markdown_to_blocks(markdown)
+    child_nodes = []
+    for block in blocks:
+        block_type = block_to_block_type(block)
+        match block_type:
+            case BlockType.PARAGRAPH:
+                block_node = ParentNode("p", None)
+            case BlockType.HEADING:
+                header = block.split(" ")[0]
+                block_node = ParentNode(f"h{header.count("#")}", None)
+            case BlockType.QUOTE:
+                block_node = ParentNode("blockquote", None)
+            case BlockType.CODE:
+                child_nodes.append(ParentNode("pre", [LeafNode("code", block.lstrip("```\n").rstrip("```"))]))
+                continue
+            case BlockType.ORDERED_LIST:
+                block_node = ParentNode("ol", None)
+            case BlockType.UNORDERED_LIST:
+                block_node = ParentNode("ul", None)
+            case _:
+                raise ValueError("No block type")
+        block_node.children = text_to_children(block, block_type)
+        child_nodes.append(block_node)
+    return ParentNode("div", child_nodes)
