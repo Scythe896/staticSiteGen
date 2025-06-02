@@ -3,8 +3,8 @@ import os
 from generatePage import generate_pages_recursive, static_to_public
 
 base_path = "/"
-if sys.argv[0] != "":
-    base_path = sys.argv[0]
+if sys.argv[1] != "":
+    base_path = sys.argv[1]
 
 def main():
     static_to_public("static", "docs")
